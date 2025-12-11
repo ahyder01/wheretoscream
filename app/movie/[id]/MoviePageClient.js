@@ -197,10 +197,33 @@ export default function MoviePageClient({ id, movie }) {
 		);
 	}
 
-	// render UI
+	// helper to format runtime (minutes -> "1h 42m")
+	const formatRuntime = (mins) => {
+		if (!mins && mins !== 0) return null;
+		const h = Math.floor(mins / 60);
+		const m = mins % 60;
+		if (h > 0) return `${h}h ${m}m`;
+		return `${m}m`;
+	};
+
+	// helper to get director and top cast from credits
+	const getCredits = (credits) => {
+		if (!credits) return { director: null, cast: [] };
+		const director = (credits.crew || []).find((c) => c.job === 'Director')?.name || null;
+		const cast = (credits.cast || []).slice(0, 6).map((c) => c.name); // top 6
+		return { director, cast };
+	};
+
+	// If server provided movie data, render poster, title, overview and metadata
 	if (movie) {
 		const posterPath = movie.poster_path || movie.backdrop_path;
 		const imgSrc = posterPath ? `https://image.tmdb.org/t/p/w500${posterPath}` : '/placeholder.png';
+
+		const { director, cast } = getCredits(movie.credits);
+		const genres = (movie.genres || []).map((g) => g.name);
+		const rating = movie.vote_average ?? null;
+		const runtimeStr = formatRuntime(movie.runtime);
+		const releaseDate = movie.release_date ?? null;
 
 		return (
 			<main className="max-w-4xl mx-auto p-4">
@@ -214,8 +237,43 @@ export default function MoviePageClient({ id, movie }) {
 					<div className="flex-1">
 						<h1 className="text-2xl font-bold">{movie.title || movie.name}</h1>
 						<p className="text-sm text-gray-600 mt-2">
-							{movie.release_date ? `Released: ${movie.release_date}` : null}
+							{releaseDate ? `Released: ${releaseDate}` : null}
 						</p>
+
+						{/* Metadata: rating, genres, director, cast, runtime */}
+						<div className="mt-3 text-sm text-gray-300 space-y-2">
+							{rating !== null && (
+								<div>
+									<span className="font-medium text-white mr-2">Rating:</span>
+									<span>{rating.toFixed(1)}</span>
+								</div>
+							)}
+							{genres.length > 0 && (
+								<div>
+									<span className="font-medium text-white mr-2">Genres:</span>
+									<span>{genres.join(', ')}</span>
+								</div>
+							)}
+							{director && (
+								<div>
+									<span className="font-medium text-white mr-2">Director:</span>
+									<span>{director}</span>
+								</div>
+							)}
+							{cast.length > 0 && (
+								<div>
+									<span className="font-medium text-white mr-2">Cast:</span>
+									<span>{cast.join(', ')}</span>
+								</div>
+							)}
+							{runtimeStr && (
+								<div>
+									<span className="font-medium text-white mr-2">Runtime:</span>
+									<span>{runtimeStr}</span>
+								</div>
+							)}
+						</div>
+
 						<div className="mt-4 text-white">
 							<p>{movie.overview || 'No description available.'}</p>
 						</div>

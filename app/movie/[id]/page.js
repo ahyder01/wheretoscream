@@ -21,7 +21,10 @@ export default async function MoviePageWrapper({ params }) {
 
 	try {
 		const res = await fetch(
-			`https://api.themoviedb.org/3/movie/${encodeURIComponent(id)}?api_key=${encodeURIComponent(tmdbKey)}`,
+			// include videos (so client can link to YouTube watch pages)
+			`https://api.themoviedb.org/3/movie/${encodeURIComponent(
+				id
+			)}?api_key=${encodeURIComponent(tmdbKey)}&append_to_response=videos`,
 			{ cache: 'no-store' }
 		);
 		if (res.status === 404) {

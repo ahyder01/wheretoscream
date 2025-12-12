@@ -57,6 +57,12 @@ export default function MoviePageClient({ id, movie }) {
 
 	// new: ref for the similar-items track and scroll handlers
 	const similarTrackRef = useRef(null);
+	const trailerSlotRef = useRef(null);
+
+	// new: ref + state to measure artwork height
+	const artRef = useRef(null);
+	const [artHeight, setArtHeight] = useState(null);
+
 	const scrollSimilar = (direction = 'right') => {
 		const el = similarTrackRef.current;
 		if (!el) return;
@@ -241,17 +247,30 @@ export default function MoviePageClient({ id, movie }) {
 		const posterPath = movie.poster_path || movie.backdrop_path;
 		const imgSrc = posterPath ? `https://image.tmdb.org/t/p/w500${posterPath}` : '/placeholder.png';
 
-		const { director, cast } = getCredits(movie.credits);
-		const genres = (movie.genres || []).map((g) => g.name);
-		const rating = movie.vote_average ?? null;
-		const runtimeStr = formatRuntime(movie.runtime);
-		const releaseDate = movie.release_date ?? null;
+		// prepare metadata if movie provided
+		const { director, cast } = getCredits(movie?.credits);
+		const genres = (movie?.genres || []).map((g) => g.name);
+		const rating = movie?.vote_average ?? null;
+		const runtimeStr = formatRuntime(movie?.runtime);
+		const releaseDate = movie?.release_date ?? null;
 
-		// Wrap entire page UI to prevent page-level horizontal scrolling while preserving inner scrollable tracks
+		// Ensure trailerKey is computed here BEFORE any JSX uses it
+		const trailerKey = (() => {
+			const vids = Array.isArray(movie?.videos?.results) ? movie.videos.results : [];
+			const yt = vids.filter((v) => String(v.site || '').toLowerCase() === 'youtube' && v.key);
+			if (!yt.length) return null;
+			const pick =
+				yt.find((v) => String(v.type || '').toLowerCase().includes('trailer')) ??
+				yt.find((v) => String(v.type || '').toLowerCase().includes('teaser')) ??
+				yt[0];
+			return pick?.key ?? null;
+		})();
+
+		// Wrap entire UI to prevent page overflow
 		return (
 			<div style={{ overflowX: 'hidden' }}>
 				<>
-					{/* full-bleed wrapper (same as carousel) */}
+					{/* MAIN: full-bleed wrapper matching trailer width */}
 					<section
 						style={{
 							marginLeft: 'calc(50% - 50vw)',
@@ -260,75 +279,115 @@ export default function MoviePageClient({ id, movie }) {
 							paddingRight: '1rem',
 						}}
 					>
-						{/* inner content width matches carousel inner track:
-						    viewport width minus overlays (128px each) and section padding (2 * 1rem) */}
+						{/* inner content aligned to the first tile and matching the trailer width */}
 						<div
 							style={{
-								width: 'calc(100vw - 256px - 2rem)',
-								marginLeft: 'calc(128px + 1rem)',
+								width: 'calc(100vw - 256px - 2rem)', // same width as trailer area
+								marginLeft: 'calc(128px + 1rem)', // align with first tile
 								maxWidth: 'none',
 							}}
 						>
-							<div className="flex gap-6 items-start">
-								<img
-									src={imgSrc}
-									alt={movie.title || movie.name || 'Movie poster'}
-									className="rounded shadow-md object-contain"
-									style={{ maxWidth: 315, width: 'auto', height: 'auto' }}
-								/>
-								<div className="flex-1">
-									<h1 className="text-2xl font-bold">{movie.title || movie.name}</h1>
-									<p className="text-sm text-gray-600 mt-2">
-										{releaseDate ? `Released: ${releaseDate}` : null}
-									</p>
+							<main className="p-4">
+								{/* center metadata vertically with the artwork and constrain height to artwork */}
+								<div className="flex gap-6 items-center">
+									{/* artwork - measure height */}
+									<img
+										ref={artRef}
+										onLoad={() => {
+											if (artRef.current) setArtHeight(artRef.current.clientHeight);
+										}}
+										src={imgSrc}
+										alt={movie.title || movie.name || 'Movie poster'}
+										className="rounded shadow-md object-contain"
+										style={{ maxWidth: 315, width: 'auto', height: 'auto' }}
+									/>
+									{/* right column: match artwork height, center content vertically, reduce spacing */}
+									<div
+										className="flex-1 flex flex-col justify-center gap-2"
+										style={{
+											height: artHeight ? artHeight : 'auto',
+											overflowY: artHeight ? 'auto' : 'visible',
+											boxSizing: 'border-box',
+										}}
+									>
+										<h1 className="text-2xl font-bold">{movie.title || movie.name}</h1>
+										<p className="text-sm text-gray-600 mt-1">{releaseDate ? `Released: ${releaseDate}` : null}</p>
 
-									{/* Metadata: rating, genres, director, cast, runtime */}
-									<div className="mt-3 text-sm text-gray-300 space-y-2">
-										{rating !== null && (
-											<div>
-												<span className="font-medium text-white mr-2">Rating:</span>
-												<span>{rating.toFixed(1)}</span>
-											</div>
-										)}
-										{genres.length > 0 && (
-											<div>
-												<span className="font-medium text-white mr-2">Genres:</span>
-												<span>{genres.join(', ')}</span>
-											</div>
-										)}
-										{director && (
-											<div>
-												<span className="font-medium text-white mr-2">Director:</span>
-												<span>{director}</span>
-											</div>
-										)}
-										{cast.length > 0 && (
-											<div>
-												<span className="font-medium text-white mr-2">Cast:</span>
-												<span>{cast.join(', ')}</span>
-											</div>
-										)}
-										{runtimeStr && (
-											<div>
-												<span className="font-medium text-white mr-2">Runtime:</span>
-												<span>{runtimeStr}</span>
-											</div>
-										)}
+										{/* Metadata: rating, genres, director, cast, runtime (tighter spacing) */}
+										<div className="mt-2 text-sm text-gray-300 space-y-1">
+ 											{rating !== null && (
+ 												<div>
+ 													<span className="font-medium text-white mr-2">Rating:</span>
+ 													<span>{rating.toFixed(1)}</span>
+ 												</div>
+ 											)}
+ 											{genres.length > 0 && (
+ 												<div>
+ 													<span className="font-medium text-white mr-2">Genres:</span>
+ 													<span>{genres.join(', ')}</span>
+ 												</div>
+ 											)}
+ 											{director && (
+ 												<div>
+ 													<span className="font-medium text-white mr-2">Director:</span>
+ 													<span>{director}</span>
+ 												</div>
+ 											)}
+ 											{cast.length > 0 && (
+ 												<div>
+ 													<span className="font-medium text-white mr-2">Cast:</span>
+ 													<span>{cast.join(', ')}</span>
+ 												</div>
+ 											)}
+ 											{runtimeStr && (
+ 												<div>
+ 													<span className="font-medium text-white mr-2">Runtime:</span>
+ 													<span>{runtimeStr}</span>
+ 												</div>
+ 											)}
+ 										</div>
+ 
+										<div className="mt-2 text-white">
+ 											<p>{movie.overview || 'No description available.'}</p>
+ 										</div>
+
+										{/* Providers below description (tighter gap) */}
+										{providersData && <div className="mt-2">{<ProvidersIcons regionCode={regionToShow} />}</div>}
+										{provError && <p className="mt-2 text-sm text-gray-500">Provider information unavailable.</p>}
 									</div>
-
-									<div className="mt-4 text-white">
-										<p>{movie.overview || 'No description available.'}</p>
-									</div>
-
-									{/* Providers below description */}
-									{providersData && <ProvidersIcons regionCode={regionToShow} />}
-									{provError && <p className="mt-2 text-sm text-gray-500">Provider information unavailable.</p>}
 								</div>
-							</div>
+							</main>
 						</div>
 					</section>
 
-					{/* More like this — one-row carousel with arrows */}
+					{/* TRAILER: moved here so it appears below artwork/metadata and below the "where to watch" box */}
+					{trailerKey ? (
+						<section
+							aria-label="Trailer"
+							style={{
+								marginLeft: 'calc(50% - 50vw)',
+								marginRight: 'calc(50% - 50vw)',
+								paddingLeft: '1rem',
+								paddingRight: '1rem',
+								marginTop: 18, // small gap below main content
+							}}
+						>
+							<div style={{ maxWidth: 'calc(100vw - 256px - 2rem)', marginLeft: 'calc(128px + 1rem)' }}>
+								<div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, width: '100%' }}>
+									<iframe
+										src={`https://www.youtube.com/embed/${trailerKey}`}
+										title="Trailer"
+										frameBorder="0"
+										allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+										allowFullScreen
+										style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+									/>
+								</div>
+							</div>
+						</section>
+					) : null}
+
+					{/* More like this carousel (unchanged) */}
 					{movie?.similar?.results?.length > 0 && (
 						<section
 							className="mt-8"

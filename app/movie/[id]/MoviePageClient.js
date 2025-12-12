@@ -1,5 +1,6 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import Link from 'next/link';
 
 export default function MoviePageClient({ id, movie }) {
 	// helper mappings
@@ -41,6 +42,27 @@ export default function MoviePageClient({ id, movie }) {
 	const [providersData, setProvidersData] = useState(null);
 	const [provError, setProvError] = useState(false);
 	const [regionToShow, setRegionToShow] = useState('US');
+
+	// match overlays/arrows to page background
+	const [pageBg, setPageBg] = useState('#000');
+	useEffect(() => {
+		if (typeof window === 'undefined') return;
+		try {
+			const bg = window.getComputedStyle(document.body).backgroundColor;
+			if (bg) setPageBg(bg);
+		} catch (e) {
+			// keep default
+		}
+	}, []);
+
+	// new: ref for the similar-items track and scroll handlers
+	const similarTrackRef = useRef(null);
+	const scrollSimilar = (direction = 'right') => {
+		const el = similarTrackRef.current;
+		if (!el) return;
+		const amount = Math.round(el.clientWidth * 0.8) * (direction === 'left' ? -1 : 1);
+		el.scrollBy({ left: amount, behavior: 'smooth' });
+	};
 
 	useEffect(() => {
 		if (!id) return;
@@ -226,71 +248,206 @@ export default function MoviePageClient({ id, movie }) {
 		const releaseDate = movie.release_date ?? null;
 
 		return (
-			<main className="max-w-4xl mx-auto p-4">
-				<div className="flex gap-6 items-start">
-					<img
-						src={imgSrc}
-						alt={movie.title || movie.name || 'Movie poster'}
-						className="rounded shadow-md object-contain"
-						style={{ maxWidth: 315, width: 'auto', height: 'auto' }}
-					/>
-					<div className="flex-1">
-						<h1 className="text-2xl font-bold">{movie.title || movie.name}</h1>
-						<p className="text-sm text-gray-600 mt-2">
-							{releaseDate ? `Released: ${releaseDate}` : null}
-						</p>
+			<>
+				<main className="max-w-4xl mx-auto p-4">
+					<div className="flex gap-6 items-start">
+						<img
+							src={imgSrc}
+							alt={movie.title || movie.name || 'Movie poster'}
+							className="rounded shadow-md object-contain"
+							style={{ maxWidth: 315, width: 'auto', height: 'auto' }}
+						/>
+						<div className="flex-1">
+							<h1 className="text-2xl font-bold">{movie.title || movie.name}</h1>
+							<p className="text-sm text-gray-600 mt-2">
+								{releaseDate ? `Released: ${releaseDate}` : null}
+							</p>
 
-						{/* Metadata: rating, genres, director, cast, runtime */}
-						<div className="mt-3 text-sm text-gray-300 space-y-2">
-							{rating !== null && (
-								<div>
-									<span className="font-medium text-white mr-2">Rating:</span>
-									<span>{rating.toFixed(1)}</span>
-								</div>
-							)}
-							{genres.length > 0 && (
-								<div>
-									<span className="font-medium text-white mr-2">Genres:</span>
-									<span>{genres.join(', ')}</span>
-								</div>
-							)}
-							{director && (
-								<div>
-									<span className="font-medium text-white mr-2">Director:</span>
-									<span>{director}</span>
-								</div>
-							)}
-							{cast.length > 0 && (
-								<div>
-									<span className="font-medium text-white mr-2">Cast:</span>
-									<span>{cast.join(', ')}</span>
-								</div>
-							)}
-							{runtimeStr && (
-								<div>
-									<span className="font-medium text-white mr-2">Runtime:</span>
-									<span>{runtimeStr}</span>
-								</div>
-							)}
+							{/* Metadata: rating, genres, director, cast, runtime */}
+							<div className="mt-3 text-sm text-gray-300 space-y-2">
+								{rating !== null && (
+									<div>
+										<span className="font-medium text-white mr-2">Rating:</span>
+										<span>{rating.toFixed(1)}</span>
+									</div>
+								)}
+								{genres.length > 0 && (
+									<div>
+										<span className="font-medium text-white mr-2">Genres:</span>
+										<span>{genres.join(', ')}</span>
+									</div>
+								)}
+								{director && (
+									<div>
+										<span className="font-medium text-white mr-2">Director:</span>
+										<span>{director}</span>
+									</div>
+								)}
+								{cast.length > 0 && (
+									<div>
+										<span className="font-medium text-white mr-2">Cast:</span>
+										<span>{cast.join(', ')}</span>
+									</div>
+								)}
+								{runtimeStr && (
+									<div>
+										<span className="font-medium text-white mr-2">Runtime:</span>
+										<span>{runtimeStr}</span>
+									</div>
+								)}
+							</div>
+
+							<div className="mt-4 text-white">
+								<p>{movie.overview || 'No description available.'}</p>
+							</div>
+
+							{/* Providers below description */}
+							{providersData && <ProvidersIcons regionCode={regionToShow} />}
+							{provError && <p className="mt-2 text-sm text-gray-500">Provider information unavailable.</p>}
 						</div>
-
-						<div className="mt-4 text-white">
-							<p>{movie.overview || 'No description available.'}</p>
-						</div>
-
-						{/* Providers below description */}
-						{providersData && <ProvidersIcons regionCode={regionToShow} />}
-						{provError && <p className="mt-2 text-sm text-gray-500">Provider information unavailable.</p>}
 					</div>
-				</div>
-			</main>
+				</main>
+
+				{/* More like this — one-row carousel with arrows */}
+				{movie?.similar?.results?.length > 0 && (
+					<section
+						className="mt-8"
+						style={{
+							marginLeft: 'calc(50% - 50vw)',
+							marginRight: 'calc(50% - 50vw)',
+							paddingLeft: '1rem',
+							paddingRight: '1rem',
+						}}
+					>
+						{/* heading placed above the carousel and aligned with the first tile */}
+						<h2
+							className="text-lg font-semibold mb-3 text-white"
+							style={{ marginLeft: 'calc(128px + 1rem)', marginTop: 0 }}
+						>
+							More like this
+						</h2>
+
+						{/* existing carousel wrapper (unchanged) */}
+						<div style={{ position: 'relative', marginTop: '0.5rem' }}>
+							{/* left/right opaque overlays to hide tiles under arrows */}
+							<div
+								style={{
+									position: 'absolute',
+									left: 0,
+									top: 0,
+									bottom: 0,
+									width: 128, // overlay width
+									background: pageBg,
+									zIndex: 40,
+									pointerEvents: 'none',
+								}}
+							/>
+							<div
+								style={{
+									position: 'absolute',
+									right: 0,
+									top: 0,
+									bottom: 0,
+									width: 128, // overlay width
+									background: pageBg,
+									zIndex: 40,
+									pointerEvents: 'none',
+								}}
+							/>
+
+							{/* left arrow (above overlay, clickable) */}
+							<button
+								type="button"
+								onClick={() => scrollSimilar('left')}
+								aria-label="Scroll left"
+								style={{
+									position: 'absolute',
+									left: 16,
+									top: '50%',
+									transform: 'translateY(-50%)',
+									zIndex: 50,
+									background: pageBg,
+									color: 'white',
+									border: 'none',
+									borderRadius: 12,
+									width: 112, // doubled arrow size
+									height: 112, // doubled arrow size
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									cursor: 'pointer',
+								}}
+							>
+								‹
+							</button>
+
+							{/* viewport (clips the scrolling track) */}
+							<div style={{ overflow: 'hidden' }}>
+								{/* scrolling track: single-row flex, horizontally scrollable
+								    paddingLeft/Right matches overlay width so tiles start hidden */}
+								<div
+									ref={similarTrackRef}
+									className="flex gap-4"
+									style={{
+										overflowX: 'auto',
+										scrollBehavior: 'smooth',
+										paddingBottom: 8,
+										// overlay width (128) ensures tiles are hidden under larger arrows initially
+										paddingLeft: 128,
+										paddingRight: 128,
+										scrollbarWidth: 'none',
+										msOverflowStyle: 'none',
+									}}
+								>
+									{movie.similar.results.map((sim) => {
+										const simPoster = sim.poster_path ? `https://image.tmdb.org/t/p/w342${sim.poster_path}` : '/placeholder.png';
+										return (
+											<Link key={sim.id} href={`/movie/${sim.id}`} className="block flex-none" style={{ width: 160 }}>
+												<img src={simPoster} alt={sim.title || sim.name} className="w-full h-auto rounded" />
+												<div className="text-sm mt-2 text-white truncate">{sim.title || sim.name}</div>
+											</Link>
+										);
+									})}
+								</div>
+							</div>
+
+							{/* right arrow (above overlay, clickable) */}
+							<button
+								type="button"
+								onClick={() => scrollSimilar('right')}
+								aria-label="Scroll right"
+								style={{
+									position: 'absolute',
+									right: 16,
+									top: '50%',
+									transform: 'translateY(-50%)',
+									zIndex: 50,
+									background: pageBg,
+									color: 'white',
+									border: 'none',
+									borderRadius: 12,
+									width: 112, // doubled arrow size
+									height: 112, // doubled arrow size
+									display: 'flex',
+									alignItems: 'center',
+									justifyContent: 'center',
+									cursor: 'pointer',
+								}}
+							>
+								›
+							</button>
+						</div>
+					</section>
+				)}
+			</>
 		);
 	}
 
-	// fallback when no server movie data
+	// fallback: loading or error state
 	return (
 		<main className="max-w-4xl mx-auto p-4">
-			<p className="text-center text-gray-600">Loading movie details...</p>
+			<h1 className="text-2xl font-bold text-center">Movie Details</h1>
+			<p className="mt-4 text-center text-gray-500">Select a movie to see details.</p>
 		</main>
 	);
 }

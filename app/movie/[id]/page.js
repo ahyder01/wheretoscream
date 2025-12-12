@@ -21,10 +21,10 @@ export default async function MoviePageWrapper({ params }) {
 
 	try {
 		const res = await fetch(
-			// include videos and credits (so client can show director & cast)
+			// include videos and credits (so client can show director & cast) and similar movies
 			`https://api.themoviedb.org/3/movie/${encodeURIComponent(
 				id
-			)}?api_key=${encodeURIComponent(tmdbKey)}&append_to_response=videos,credits`,
+			)}?api_key=${encodeURIComponent(tmdbKey)}&append_to_response=videos,credits,similar`,
 			{ cache: 'no-store' }
 		);
 		if (res.status === 404) {

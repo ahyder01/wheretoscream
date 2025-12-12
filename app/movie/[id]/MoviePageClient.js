@@ -251,64 +251,82 @@ export default function MoviePageClient({ id, movie }) {
 		return (
 			<div style={{ overflowX: 'hidden' }}>
 				<>
-					<main className="max-w-4xl mx-auto p-4">
-						<div className="flex gap-6 items-start">
-							<img
-								src={imgSrc}
-								alt={movie.title || movie.name || 'Movie poster'}
-								className="rounded shadow-md object-contain"
-								style={{ maxWidth: 315, width: 'auto', height: 'auto' }}
-							/>
-							<div className="flex-1">
-								<h1 className="text-2xl font-bold">{movie.title || movie.name}</h1>
-								<p className="text-sm text-gray-600 mt-2">
-									{releaseDate ? `Released: ${releaseDate}` : null}
-								</p>
+					{/* full-bleed wrapper (same as carousel) */}
+					<section
+						style={{
+							marginLeft: 'calc(50% - 50vw)',
+							marginRight: 'calc(50% - 50vw)',
+							paddingLeft: '1rem',
+							paddingRight: '1rem',
+						}}
+					>
+						{/* inner content width matches carousel inner track:
+						    viewport width minus overlays (128px each) and section padding (2 * 1rem) */}
+						<div
+							style={{
+								width: 'calc(100vw - 256px - 2rem)',
+								marginLeft: 'calc(128px + 1rem)',
+								maxWidth: 'none',
+							}}
+						>
+							<div className="flex gap-6 items-start">
+								<img
+									src={imgSrc}
+									alt={movie.title || movie.name || 'Movie poster'}
+									className="rounded shadow-md object-contain"
+									style={{ maxWidth: 315, width: 'auto', height: 'auto' }}
+								/>
+								<div className="flex-1">
+									<h1 className="text-2xl font-bold">{movie.title || movie.name}</h1>
+									<p className="text-sm text-gray-600 mt-2">
+										{releaseDate ? `Released: ${releaseDate}` : null}
+									</p>
 
-								{/* Metadata: rating, genres, director, cast, runtime */}
-								<div className="mt-3 text-sm text-gray-300 space-y-2">
-									{rating !== null && (
-										<div>
-											<span className="font-medium text-white mr-2">Rating:</span>
-											<span>{rating.toFixed(1)}</span>
-										</div>
-									)}
-									{genres.length > 0 && (
-										<div>
-											<span className="font-medium text-white mr-2">Genres:</span>
-											<span>{genres.join(', ')}</span>
-										</div>
-									)}
-									{director && (
-										<div>
-											<span className="font-medium text-white mr-2">Director:</span>
-											<span>{director}</span>
-										</div>
-									)}
-									{cast.length > 0 && (
-										<div>
-											<span className="font-medium text-white mr-2">Cast:</span>
-											<span>{cast.join(', ')}</span>
-										</div>
-									)}
-									{runtimeStr && (
-										<div>
-											<span className="font-medium text-white mr-2">Runtime:</span>
-											<span>{runtimeStr}</span>
-										</div>
-									)}
+									{/* Metadata: rating, genres, director, cast, runtime */}
+									<div className="mt-3 text-sm text-gray-300 space-y-2">
+										{rating !== null && (
+											<div>
+												<span className="font-medium text-white mr-2">Rating:</span>
+												<span>{rating.toFixed(1)}</span>
+											</div>
+										)}
+										{genres.length > 0 && (
+											<div>
+												<span className="font-medium text-white mr-2">Genres:</span>
+												<span>{genres.join(', ')}</span>
+											</div>
+										)}
+										{director && (
+											<div>
+												<span className="font-medium text-white mr-2">Director:</span>
+												<span>{director}</span>
+											</div>
+										)}
+										{cast.length > 0 && (
+											<div>
+												<span className="font-medium text-white mr-2">Cast:</span>
+												<span>{cast.join(', ')}</span>
+											</div>
+										)}
+										{runtimeStr && (
+											<div>
+												<span className="font-medium text-white mr-2">Runtime:</span>
+												<span>{runtimeStr}</span>
+											</div>
+										)}
+									</div>
+
+									<div className="mt-4 text-white">
+										<p>{movie.overview || 'No description available.'}</p>
+									</div>
+
+									{/* Providers below description */}
+									{providersData && <ProvidersIcons regionCode={regionToShow} />}
+									{provError && <p className="mt-2 text-sm text-gray-500">Provider information unavailable.</p>}
 								</div>
-
-								<div className="mt-4 text-white">
-									<p>{movie.overview || 'No description available.'}</p>
-								</div>
-
-								{/* Providers below description */}
-								{providersData && <ProvidersIcons regionCode={regionToShow} />}
-								{provError && <p className="mt-2 text-sm text-gray-500">Provider information unavailable.</p>}
 							</div>
 						</div>
-					</main>
+					</section>
 
 					{/* More like this — one-row carousel with arrows */}
 					{movie?.similar?.results?.length > 0 && (
